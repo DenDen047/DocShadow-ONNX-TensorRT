@@ -1,4 +1,6 @@
+import os
 import argparse
+from pathlib import Path
 
 import numpy as np
 from PIL import Image
@@ -41,7 +43,7 @@ def parse_args() -> argparse.Namespace:
         help="Whether to use TensorRT. Note that the end2end ONNX model must NOT be exported with --fp16. TensorRT will perform the conversion instead. Only static input shapes are supported.",
     )
     parser.add_argument(
-        "--viz", action="store_true", help="Whether to visualize the results."
+        "--save", action="store_true", help="Whether to save the results."
     )
     return parser.parse_args()
 
@@ -52,7 +54,7 @@ def infer(
     onnx_path=None,
     fp16=False,
     trt=False,
-    viz=False,
+    save=False,
 ):
     img = Image.open(img_path).convert("RGB")
     orig_W, orig_H = img.size
@@ -85,14 +87,20 @@ def infer(
     runner = DocShadowRunner(onnx_path, providers=providers)
     result = runner.run(image)
 
-    # Visualisation
-    if viz:
+    # save the result as pictures
+    if save:
         import cv2
 
-        result_img = result[0].transpose(1, 2, 0)
+        result_img = result[0].transpose(1, 2, 0) * 255
         result_img = cv2.resize(result_img, (orig_W, orig_H))
-        cv2.imshow("result", cv2.cvtColor(result_img, cv2.COLOR_RGB2BGR))
-        cv2.waitKey(0)
+        in_img_path = Path(img_path)
+        cv2.imwrite(
+            os.path.join(
+                str(in_img_path.parent),
+                in_img_path.stem + '_result' + in_img_path.suffix
+            ),
+            cv2.cvtColor(result_img, cv2.COLOR_RGB2BGR)
+        )
 
     return result
 
